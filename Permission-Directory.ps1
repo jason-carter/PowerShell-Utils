@@ -67,7 +67,7 @@ foreach ($User in $UserNames)
     foreach ($Ar in $Acl.Access)
     {
         if ($Ar.FileSystemRights -eq $Ar2Remove.FileSystemRights -and
-            $Ar.IdentityReference.ToString().Contains("IIS_IUSRS"))
+            $Ar.IdentityReference.ToString().Contains($User))
         {
             "Changing Modify to ReadAndExecute permissions for : $($Ar.IdentityReference)"
             $Acl.RemoveAccessRule($Ar2Remove)
