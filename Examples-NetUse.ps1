@@ -3,8 +3,8 @@ Get-WmiObject Win32_NetworkConnection
 
 # Powershell version - have to name it but can give it a logical name rather than a drive letter
 Get-PSDrive
-New-PSDrive -Name C772-SRE -Root \\<server>\<share>$ -PSProvider FileSystem
-Remove-PSDrive -Name C72-SRE
+New-PSDrive -Name J123-TMP -Root \\<server>\<share>$ -PSProvider FileSystem
+Remove-PSDrive -Name J123-TMP
 
 
 # Untested suggestion from the internet

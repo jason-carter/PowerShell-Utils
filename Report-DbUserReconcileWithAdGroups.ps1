@@ -50,7 +50,7 @@ cls
 "$(get-date -Format yyyyMMdd) USER RECONCILIATION REPORT"
 "============================================="
 ""
-"Found $(($SqlResult | measure).Count) active RABONETEU users"
+"Found $(($SqlResult | measure).Count) active users"
 ""
 
 #"Users with no AD Account"
@@ -98,7 +98,7 @@ $SqlResult |
         else
         {
             if (($adUser.GetDirectoryEntry().memberOf | 
-                    select-string -Pattern "SingleRiskEngine" | 
+                    select-string -Pattern "<AD Group Substring>" | 
                         measure).Count -eq 0)
             {
                 $noADGroupCount++

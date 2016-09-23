@@ -43,6 +43,7 @@ $postcode.GetUKLocationByPostcode('SW1A')
 # Using .Net Classes/Methods
 #
 [DateTime]::UtcNow
+Get-Date
 
 #
 # Get events from event viewer
@@ -56,9 +57,9 @@ Get-EventLog -LogName System -Newest 5 | Out-GridView -Title 'System Log'
 #
 # Logging to file example
 #
-$log_file = "z:\<Path>\file-monitor.log"
+$log_file = "<drive>:\<Path>\file-monitor.log"
 add-content -path $log_file -value ""
-add-content -path $log_file -value "$(get-date -format "yyyy-MM-dd HH:mm:ss") Flag File Monitor Started"
+add-content -path $log_file -value "$(get-date -format "yyyy-MM-dd HH:mm:ss") File Monitor Started"
 
 #
 # Equivalent of Unix WC (Word Count)
