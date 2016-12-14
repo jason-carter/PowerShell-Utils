@@ -3,12 +3,22 @@
 #
 
 
-# Folders to create/permission
-$BasePath='C:\temp'
-$Folder2Permission = "$($BasePath)\PermissionTest"
+# Folders to create/permission - using parent\child structure to test inheritance
+$BasePath="C:\temp\temp"
+$ParentPath="$($BasePath)\temp"
+$ChildPath = "$($ParentPath)\PermissionTest"
 
 # List of users to add to the folder with Modify permissions
-$UserNames = ("IIS_IUSRS") # using IIS_IUSRS as an example!
+#$UserNames = ("BUILTIN\IIS_IUSRS",
+#              "BUILTIN\Administrators",
+#              "NT AUTHORITY\SYSTEM",
+#              "BUILTIN\Users",
+#              "NT AUTHORITY\Authenticated Users")
+$UserNames = ("IIS_IUSRS",
+              "Administrators",
+              "SYSTEM",
+              "Users",
+              "Authenticated Users")
 
 
 #
@@ -34,7 +44,7 @@ $ARPropagationSettings = "None"
 $ARType = "Allow"
 
 # Get the ACL
-$Acl = ((get-item $Folder2Permission).GetAccessControl('Access'))
+$Acl = get-item $Folder2Permission | get-acl
 
 foreach ($User in $UserNames)
 {
@@ -51,11 +61,25 @@ $Acl | Format-List
 # Remove modify rights for user IIS_IUSRS
 #
 
+# Remove inheritance
+#
+# SetAccessRuleProtection(isProtected, preserveInheritance) params:
+#
+#   isProtected
+#     True  – Protect rules from being changed by inheritance
+#     False – Allow inheritance to change the rules
+#
+#   preserveInheritance
+#     True  – Preserve inheritance
+#     False – Remove inherited rules
+#
+#$Acl.SetAccessRuleProtection($true,$false)
+
 # List file rights for each user before modification
-foreach ($Ar in $Acl.Access)
-{
-    "$($Ar.IdentityReference) : $($Ar.FileSystemRights)"
-}
+$Acl.Access | %{"$($_.IdentityReference) : $($_.FileSystemRights)"}
+
+
+#$Acl.Access |where {$_.IdentityReference.ToString().Contains($User)} | %{$Acl.RemoveAccessRule($_)}
 
 ""
 
@@ -81,10 +105,7 @@ Set-Acl -Path $Folder2Permission -AclObject $Acl
 ""
 
 # List file rights for each user after modification
-foreach ($Ar in $Acl.Access)
-{
-    "$($Ar.IdentityReference) : $($Ar.FileSystemRights)"
-}
+$Acl.Access | %{"$($_.IdentityReference) : $($_.FileSystemRights)"}
 
 ""
 
