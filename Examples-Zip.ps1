@@ -1,7 +1,11 @@
-﻿add-type -a system.io.compression.filesystem
+﻿#
+# Old style zipping, but needs .net 4.5
+#
 
-$basedir2zip = "\\spiderapp\spiderdata$\Reports"
-$childdir2zip = "201701"
+add-type -a system.io.compression.filesystem
+
+$basedir2zip = "\\<server>\<share>$\<parent-dir>"
+$childdir2zip = "<child-dir"
 
 #Get-ChildItem -Directory "$($basedir2zip)\$($childdir2zip)" #\$($childdir2zip)'
 
