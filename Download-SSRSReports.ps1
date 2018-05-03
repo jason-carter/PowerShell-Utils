@@ -1,131 +1,65 @@
-﻿function GetRSConnection($server, $instance)
-{
-    #   Create a proxy to the SSRS server and give it the namespace of 'RS' to use for
-    #   instantiating objects later.  This class will also be used to create a report
-    #   object.
+﻿
+#
+# To be able to run this script without highlighting it, you need to run the following command:
+#
+#     Set-ExecutionPolicy -Scope CurrentUser  Unrestricted
+#
 
-    # Insecure - ask the user for their credentials!
-    #$User = "DOMAIN\Username"
-    #$PWord = ConvertTo-SecureString -String "Pa$$w0rd" -AsPlainText -Force
-    #$c = New-Object –TypeName System.Management.Automation.PSCredential –ArgumentList $User, $PWord
 
-    $c = Get-Credential
+#### Modules
 
-    $reportServerURI = "http://" + $server + "/" + $instance + "/ReportExecution2005.asmx?WSDL"
-    
-    $RS = New-WebServiceProxy -Class 'RS' -NameSpace 'RS' -Uri $reportServerURI -Credential $c
-    $RS.Url = $reportServerURI
-    return $RS
-}
+$ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 
-function GetReport($RS, $reportPath)
-{
-    #   Next we need to load the report. Since Powershell cannot pass a null string
-    #   (it instead just passses ""), we have to use GetMethod / Invoke to call the
-    #   function that returns the report object.  This will load the report in the
-    #   report server object, as well as create a report object that can be used to
-    #   discover information about the report.  It's not used in this code, but it can
-    #   be used to discover information about what parameters are needed to execute
-    #   the report.
-    $reportPath = "/" + $reportPath
-    $Report = $RS.GetType().GetMethod("LoadReport").Invoke($RS, @($reportPath, $null))
+if (Get-Module -Name HelperFunctions-SSRSReports) {Remove-Module HelperFunctions-SSRSReports}
 
-    # initialise empty parameter holder
-    $parameters = @()
-    $RS.SetExecutionParameters($parameters, "en-GB") > $null
-    return $report
-}
+Import-Module $ScriptPath\HelperFunctions-SSRSReports
 
-function AddParameter($params, $name, $val)
-{
-    $par = New-Object RS.ParameterValue
-    $par.Name = $name
-    $par.Value = $val
-    $params += $par
-    return ,$params
-}
 
-function GetReportInFormat($RS, $report, $params, $outputpath, $format)
-{
-    #   Set up some variables to hold referenced results from Render
-    $deviceInfo = "<DeviceInfo><NoHeader>True</NoHeader></DeviceInfo>"
-    $extension = ""
-    $mimeType = ""
-    $encoding = ""
-    $warnings = $null
-    $streamIDs = $null
+#### PARAMS to change to suit requirements
 
-    #   Report parameters are handled by creating an array of ParameterValue objects.
-    #   Add the parameter array to the service.  Note that this returns some
-    #   information about the report that is about to be executed.
-    #   $RS.SetExecutionParameters($parameters, "en-us") > $null
-    $RS.SetExecutionParameters($params, "en-GB") > $null
+$BaselineServer                 = "<server-name>"
+$BaselineInstance               = "<server-instance>"
+$BaselineReportingArea          = "<reporting-area>"
 
-    #    Render the report to a byte array.  The first argument is the report format.
-    #    The formats I've tested are: PDF, XML, CSV, WORD (.doc), EXCEL (.xls),
-    #    IMAGE (.tif), MHTML (.mhtml).
-    $RenderOutput = $RS.Render($format,
-        $deviceInfo,
-        [ref] $extension,
-        [ref] $mimeType,
-        [ref] $encoding,
-        [ref] $warnings,
-        [ref] $streamIDs
-    )
+$ReleaseCandidateServer         = "<server-name>"
+$ReleaseCandidateInstance       = "<server-instance>"
+$ReleaseCandidateReportingArea  = "<reporting-area>"
 
-    #   Determine file name
-    $parts = $report.ReportPath.Split("/")
-    $filename = $parts[-1] + "."
 
-    switch($format)
-    {
-        "EXCEL" { $filename = $filename + "xls" } 
-        "WORD"  { $filename = $filename + "doc" }
-        "IMAGE" { $filename = $filename + "tif" }
-        default { $filename = $filename + $format }
-    }
+$BusinessDate           = "31/07/2017"
+$BusinessDateMinus1y    = "29/07/2016"    # To Do: should be a business date so not so easy to calc
+$BusinessDateMinus1m    = "29/06/2017"    # To Do: should be a business date so not so easy to calc
+$BusinessDateMinus1d    = "30/07/2017"    # To Do: should be a business date so not so easy to calc
+$ReportFormat           = "CSV"         # Can be PDF, CSV, EXCEL, WORD, IMAGE
+$OutputFolder           = "C:\Temp"
 
-    if($outputpath.EndsWith("\\"))
-    {
-        $filename = $outputpath + $filename
-    } else
-    {
-        $filename = $outputpath + "\" + $filename
-    }
-
-    $filename
-
-    # Convert array bytes to file and write
-    $Stream = New-Object System.IO.FileStream($filename), Create, Write
-    $Stream.Write($RenderOutput, 0, $RenderOutput.Length)
-    $Stream.Close()
-}
-
-##############################
-
-# PARAMS to change to suit requirements
-$Server                 = "<server-name>"
-$Instance               = "<server-instance>"
-$ReportingArea          = "<reporting-area>"
-$BusinessDate           = "01/01/2018"
-$BusinessDateMinus1y    = "01/01/2017"
-$ReportFormat           = "PDF" # Can be PDF, CSV, EXCEL, WORD, IMAGE
-$OutputFolder           = "C:\Tmp"
-
-# ConsolidatedLimitPeriod, CLGraph1GFMSTP, BudgetToVatRReport, CapitalFiguresReport
+# An array of reports where each report is an array of parameters
+#
+#    ReportName1, Param1=Value1, Param2=Value2
+#    ReportName2, Param1=Value1
+#    ReportName3, Param1=Value1, Param2=Value2, Param3=Value3, Param4=Value4
+#
+#
+# Note: Needs more than one report as Powershell can't figure out the correct type if it's a single array rather than an array of arrays
+#
 $Reports    =  @("ReportNameWithOneParam", "BusDate=$($BusinessDate)"),
                 ("ReportNameWithTwoParams", "startDate=$($BusinessDate)", "endDate=$($BusinessDate)"),
                 ("ReportNameWithDiffParamTypes", "BusinessDate=$($BusinessDate)", "NumberOfDays=7"),
                 ("ReportNameWithMultipleParams", "StartDate=$($BusinessDateMinus1y)", "EndDate=$($BusinessDate)", "ParentLevel=2", "ChildLevel=5", "ParentPortfolio=<All>", "ReportType=Short Term")
 
-$RS = GetRSConnection -server $Server -instance $Instance
+
+$Credential = Get-Credential
+$BaselineRS         = GetRSConnection -server $BaselineServer         -instance $BaselineInstance         -credential $Credential
+$ReleaseCandidateRS = GetRSConnection -server $ReleaseCandidateServer -instance $ReleaseCandidateInstance -credential $Credential
+
+Write-Host ""
 
 $Reports |
     ForEach-Object {
         $Report = $_
 
         $ReportName = $Report[0]
-        Write-Host "Extracting Report $($ReportName)"
+        Write-Host "Report $($ReportName)"
 
         $params = @()
 
@@ -137,9 +71,29 @@ $Reports |
             $params = AddParameter -params $params -name $paramKeyValue[0] -val $paramKeyValue[1]
         }
 
-        $report = GetReport -RS $RS -reportPath "$ReportingArea/$ReportName"
+        Write-Host ""
 
-        GetReportInFormat -RS $RS -report $report -params $params -outputpath $OutputFolder -format $ReportFormat
+        $BaselineFileName = "Baseline-$($ReportName)"
+
+        Write-Host "    Extracting $($BaselineFileName)..."
+        $BaselineReport        = GetReport -RS $BaselineRS -reportPath "$BaselineReportingArea/$ReportName"
+        GetReportInFormat -RS $BaselineRS -report $BaselineReport -params $params -outputpath $OutputFolder -outputfilename $BaselineFileName -format $ReportFormat
+
+        $ReleaseCandidateFileName = "ReleaseCandidate-$($ReportName)"
+
+        Write-Host "    Extracting $($ReleaseCandidateFileName)..."
+        $ReleaseCandidateReport = GetReport -RS $ReleaseCandidateRS -reportPath "$ReleaseCandidateReportingArea/$ReportName"
+        GetReportInFormat -RS $BaselineRS -report $ReleaseCandidateReport -params $params -outputpath $OutputFolder -outputfilename $ReleaseCandidateFileName -format $ReportFormat
+
+        Write-Host ""
+
+        Write-Host "    Comparing reports $($BaselineFileName) and $($ReleaseCandidateFileName)"
+        $BaselineReport         = Get-Content "$($OutputFolder)\$($BaselineFileName).$ReportFormat"
+        $ReleaseCandidateReport = Get-Content "$($OutputFolder)\$($ReleaseCandidateFileName).$ReportFormat"
+
+        Compare-Object $BaselineReport $ReleaseCandidateReport > "$($OutputFolder)\diff_report_$($ReportName).txt"
+
+        Write-Host ""
     }
 
 Write-Host "DONE!"
